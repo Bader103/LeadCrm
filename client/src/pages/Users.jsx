@@ -9,14 +9,19 @@ import {
   Trash2,
   Save,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  X
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Sales Agent' });
+  const [saving, setSaving] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -32,6 +37,23 @@ const Users = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await API.post('/auth/users', formData);
+      alert('User created successfully!');
+      setFormData({ name: '', email: '', password: '', role: 'Sales Agent' });
+      setIsModalOpen(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Create user failed:', error);
+      alert(error.response?.data?.message || 'Failed to create user.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleUpdate = async (id, role, status) => {
     setUpdating(id);
@@ -62,9 +84,19 @@ const Users = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: '3rem' }}>
-        <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1.5px' }}>Team Management</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage roles and permissions for your sales force</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+        <div>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1.5px' }}>Team Management</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage roles and permissions for your sales force</p>
+        </div>
+        <button 
+          className="primary" 
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '14px' }}
+          onClick={() => setIsModalOpen(true)}
+        >
+          <Plus size={20} />
+          <span>Add Team Member</span>
+        </button>
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
@@ -144,6 +176,98 @@ const Users = () => {
           </tbody>
         </table>
       </div>
+
+      <AnimatePresence>
+        {isModalOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="glass-card" 
+              style={{ width: '450px', padding: '2.5rem', position: 'relative' }}
+            >
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', padding: 0, color: 'var(--text-muted)' }}
+              >
+                <X size={20} />
+              </button>
+              
+              <h3 style={{ fontSize: '1.8rem', fontWeight: '900', color: 'white', marginBottom: '0.5rem', letterSpacing: '-0.5px' }}>Add Team Member</h3>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '0.9rem' }}>Create a new system user with specialized access rights.</p>
+              
+              <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Full Name</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="E.g., John Doe"
+                    style={{ width: '100%', padding: '12px' }}
+                  />
+                </div>
+                
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Email Address</label>
+                  <input 
+                    type="email" 
+                    required 
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="john@example.com"
+                    style={{ width: '100%', padding: '12px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Password</label>
+                  <input 
+                    type="password" 
+                    required 
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Min. 6 characters"
+                    style={{ width: '100%', padding: '12px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>System Role</label>
+                  <select 
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
+                  >
+                    {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '12px', marginTop: '1rem' }}>
+                  <button 
+                    type="button" 
+                    className="glass-card" 
+                    onClick={() => setIsModalOpen(false)}
+                    style={{ flex: 1, padding: '12px', background: 'transparent' }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="primary" 
+                    disabled={saving}
+                    style={{ flex: 1, padding: '12px' }}
+                  >
+                    {saving ? 'Creating...' : 'Create User'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

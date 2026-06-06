@@ -18,12 +18,12 @@ router.get('/export', require('../controllers/exportController').exportLeads);
 
 router.route('/')
     .get(getLeads)
-    .post(authorize('Admin', 'Sales Manager', 'Sales Agent'), createLead);
+    .post(authorize('Admin'), createLead);
 
 router.route('/:id')
     .get(getLead)
     .put(updateLead)
-    .delete(authorize('Admin', 'Sales Manager'), deleteLead);
+    .delete(authorize('Admin'), deleteLead);
 
 // Notes routes
 router.route('/:leadId/notes')

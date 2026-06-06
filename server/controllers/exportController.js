@@ -3,8 +3,14 @@ const Lead = require('../models/leadModel');
 exports.exportLeads = async (req, res) => {
     try {
         let leads;
-        if (req.user.role === 'Admin' || req.user.role === 'Sales Manager') {
+        if (req.user.role === 'Admin') {
             leads = await Lead.findAll();
+        } else if (req.user.role === 'Sales Manager') {
+            const [rows] = await require('../config/db').execute(
+                'SELECT * FROM leads WHERE assigned_to = ? OR assigned_to IS NULL ORDER BY created_at DESC',
+                [req.user.id]
+            );
+            leads = rows;
         } else {
             leads = await Lead.findByAssignedTo(req.user.id);
         }

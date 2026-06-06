@@ -82,6 +82,18 @@ input:focus, select:focus {
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
+/* Fix dropdown option background on dark theme */
+option {
+  background-color: #111111;
+  color: var(--text-main);
+}
+
+option:hover,
+option:checked {
+  background-color: var(--primary);
+  color: #000;
+}
+
 .glass-card {
   background: var(--glass);
   backdrop-filter: blur(20px);

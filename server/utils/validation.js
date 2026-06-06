@@ -36,13 +36,21 @@ const updatePasswordSchema = Joi.object({
 });
 
 const leadSchema = Joi.object({
-    name: Joi.string().required(),
-    email: Joi.string().email().allow('', null),
-    phone: Joi.string().required(),
-    source: Joi.string().required(),
+    first_name: Joi.string().required().messages({
+        'string.empty': 'First name is required',
+    }),
+    last_name: Joi.string().required().messages({
+        'string.empty': 'Last name is required',
+    }),
+    email: Joi.string().email().allow('', null).messages({
+        'string.email': 'Please provide a valid email',
+    }),
+    phone: Joi.string().allow('', null),
+    company: Joi.string().allow('', null),
+    source: Joi.string().optional(),
     status: Joi.string().optional(),
-    assignedTo: Joi.number().optional(),
-    notes: Joi.string().allow('', null),
+    priority: Joi.string().optional(),
+    assigned_to: Joi.number().optional(),
 });
 
 module.exports = {

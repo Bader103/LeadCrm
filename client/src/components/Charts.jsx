@@ -32,7 +32,7 @@ const sourceData = [
 
 const COLORS = ['#10b981', '#34d399', '#059669', '#065f46'];
 
-export const PipelineChart = () => (
+export const PipelineChart = ({ data = [] }) => (
   <ResponsiveContainer width="100%" height="100%">
     <AreaChart data={data}>
       <defs>
@@ -53,11 +53,11 @@ export const PipelineChart = () => (
   </ResponsiveContainer>
 );
 
-export const SourceChart = () => (
+export const SourceChart = ({ data = [] }) => (
   <ResponsiveContainer width="100%" height="100%">
     <PieChart>
       <Pie
-        data={sourceData}
+        data={data}
         cx="50%"
         cy="50%"
         innerRadius={60}
@@ -65,7 +65,7 @@ export const SourceChart = () => (
         paddingAngle={5}
         dataKey="value"
       >
-        {sourceData.map((entry, index) => (
+        {data.map((entry, index) => (
           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
         ))}
       </Pie>

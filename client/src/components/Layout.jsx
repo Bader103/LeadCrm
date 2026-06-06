@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import API from '../api/apiClient';
+import API from '../api/axios';
 import { 
   LayoutDashboard, 
   Users, 

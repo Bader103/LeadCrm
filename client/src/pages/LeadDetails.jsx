@@ -24,6 +24,66 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const FollowupForm = ({ leadId, onAdded }) => {
+  const [date, setDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!date) return;
+    setSaving(true);
+    try {
+      await API.post(`/leads/followups`, { leadId, scheduled_date: date, notes });
+      setDate(''); setNotes(''); setOpen(false);
+      onAdded();
+    } catch (err) {
+      console.error('Failed to add follow-up:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '10px', background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.25)', fontWeight: '700', fontSize: '0.85rem', width: '100%', justifyContent: 'center' }}
+        >
+          <Plus size={16} /> Schedule Follow-up
+        </button>
+      ) : (
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <input
+            type="datetime-local"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            required
+            style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'white', fontSize: '0.85rem' }}
+          />
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Notes (optional)"
+            rows={2}
+            style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'white', fontSize: '0.85rem', resize: 'none' }}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="submit" disabled={saving} style={{ flex: 1, padding: '8px', borderRadius: '10px', background: 'var(--warning)', color: '#000', fontWeight: '800', fontSize: '0.85rem' }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" onClick={() => setOpen(false)} style={{ padding: '8px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontWeight: '700', fontSize: '0.85rem' }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+};
+
 const LeadDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -47,7 +107,7 @@ const LeadDetails = () => {
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        const [leadRes, notesRes, activitiesRes, followupsRes, usersRes, attachRes, tempRes] = await Promise.all([
+        const [leadRes, notesRes, activitiesRes, followupsRes, usersRes, attachRes, tempRes] = await Promise.allSettled([
           API.get(`/leads/${id}`),
           API.get(`/leads/${id}/notes`),
           API.get(`/activities/lead/${id}`),
@@ -56,13 +116,14 @@ const LeadDetails = () => {
           API.get(`/leads/${id}/attachments`),
           API.get('/templates')
         ]);
-        setLead(leadRes.data.data);
-        setNotes(notesRes.data.data);
-        setActivities(activitiesRes.data.data);
-        setFollowups(followupsRes.data.data);
-        setUsers(usersRes.data.data);
-        setAttachments(attachRes.data.data);
-        setTemplates(tempRes.data.data);
+
+        if (leadRes.status === 'fulfilled') setLead(leadRes.value.data.data);
+        if (notesRes.status === 'fulfilled') setNotes(notesRes.value.data.data);
+        if (activitiesRes.status === 'fulfilled') setActivities(activitiesRes.value.data.data);
+        if (followupsRes.status === 'fulfilled') setFollowups(followupsRes.value.data.data);
+        if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data.data);
+        if (attachRes.status === 'fulfilled') setAttachments(attachRes.value.data.data);
+        if (tempRes.status === 'fulfilled') setTemplates(tempRes.value.data.data);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -181,14 +242,33 @@ const LeadDetails = () => {
             </button>
           )}
           {(currentUser?.role === 'Admin' || currentUser?.role === 'Sales Manager') && (
-            <button 
-              onClick={() => setIsAssigning(!isAssigning)}
-              className="glass-card"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px' }}
-            >
-              <UserPlus size={18} />
-              Assign Agent
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setIsAssigning(!isAssigning)}
+                className="glass-card"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px' }}
+              >
+                <UserPlus size={18} />
+                Assign Agent
+              </button>
+              {isAssigning && (
+                <div className="glass-card" style={{ position: 'absolute', right: 0, top: '50px', zIndex: 10, width: '250px', padding: '1rem', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '700' }}>Select team member:</p>
+                  <select 
+                    onChange={(e) => {
+                      if (e.target.value) handleAssign(e.target.value);
+                    }}
+                    defaultValue=""
+                    style={{ width: '100%', padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: '8px', color: 'white' }}
+                  >
+                    <option value="">Select Agent...</option>
+                    {users.filter(u => u.role !== 'Client').map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -324,6 +404,46 @@ const LeadDetails = () => {
                      </div>
                   </div>
                 ))}
+                {activities.length === 0 && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', paddingLeft: '40px' }}>No activity recorded yet.</p>}
+              </div>
+           </div>
+
+           {/* Followups Section */}
+           <div className="glass-card" style={{ padding: '2rem' }}>
+              <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '800' }}>
+                <Calendar size={20} color="var(--warning)" />
+                Follow-ups
+              </h3>
+
+              {/* Schedule new followup inline form */}
+              <FollowupForm leadId={id} onAdded={async () => {
+                const { data } = await API.get(`/leads/${id}/followups`);
+                setFollowups(data.data);
+              }} />
+
+              {/* List of followups */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>
+                {followups.length === 0 && (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>No follow-ups scheduled yet.</p>
+                )}
+                {followups.map(f => {
+                  const isOverdue = new Date(f.scheduled_date) < new Date() && f.status === 'Pending';
+                  const isToday = new Date(f.scheduled_date).toDateString() === new Date().toDateString();
+                  const color = f.status === 'Completed' ? 'var(--success)' : isOverdue ? 'var(--danger)' : isToday ? 'var(--warning)' : 'var(--primary)';
+                  return (
+                    <div key={f.id} style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: `1px solid ${color}33`, borderLeft: `4px solid ${color}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: '800', color, textTransform: 'uppercase' }}>
+                          {f.status === 'Completed' ? 'Completed' : isOverdue ? 'Overdue' : isToday ? 'Today' : 'Upcoming'}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {new Date(f.scheduled_date).toLocaleString()}
+                        </span>
+                      </div>
+                      {f.notes && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>{f.notes}</p>}
+                    </div>
+                  );
+                })}
               </div>
            </div>
         </div>

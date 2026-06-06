@@ -19,15 +19,35 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 
-// Rate Limiting
+// Rate Limiting - more lenient for development
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 1000, // limit each IP to 1000 requests per windowMs
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again after 15 minutes'
-    }
+    },
+    skip: (req) => {
+        // Skip rate limiting for GET requests to reduce false positives during development
+        return req.method === 'GET';
+    },
+    standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+    legacyHeaders: false, // Disable `X-RateLimit-*` headers
 });
+
+// Apply stricter limits to auth endpoints to prevent brute force
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10, // Only 10 attempts per 15 minutes
+    message: {
+        success: false,
+        message: 'Too many login attempts, please try again after 15 minutes'
+    },
+    skipSuccessfulRequests: true, // Don't count successful requests
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 app.use('/api/', limiter);
 
 // Standard Middleware

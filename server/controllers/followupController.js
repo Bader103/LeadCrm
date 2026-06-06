@@ -3,15 +3,14 @@ const Notification = require('../models/notificationModel');
 
 exports.checkFollowups = async (userId) => {
     try {
-        // Find followups due today or overdue that haven't been notified yet
+        // Find followups due today or overdue with status still Pending
         const [dueFollowups] = await db.execute(
             `SELECT f.*, l.first_name, l.last_name, l.assigned_to 
              FROM followups f 
              JOIN leads l ON f.lead_id = l.id 
              WHERE l.assigned_to = ? 
              AND f.scheduled_date <= NOW() 
-             AND f.status = 'Pending'
-             AND f.notified = FALSE`,
+             AND f.status = 'Pending'`,
             [userId]
         );
 
@@ -22,9 +21,6 @@ exports.checkFollowups = async (userId) => {
                 message: `URGENT: Follow-up scheduled for ${f.first_name} ${f.last_name} is due now!`,
                 lead_id: f.lead_id
             });
-            
-            // Mark followup as notified
-            await db.execute('UPDATE followups SET notified = TRUE WHERE id = ?', [f.id]);
         }
     } catch (error) {
         console.error('Follow-up check error:', error);
@@ -34,6 +30,20 @@ exports.checkFollowups = async (userId) => {
 exports.addFollowup = async (req, res) => {
     try {
         const { leadId, scheduled_date, notes } = req.body;
+        
+        // Check lead existence and ownership
+        const [leads] = await db.execute('SELECT assigned_to FROM leads WHERE id = ?', [leadId]);
+        if (leads.length === 0) {
+            return res.status(404).json({ success: false, message: 'Lead not found' });
+        }
+        const isAuthorized = 
+            req.user.role === 'Admin' || 
+            (req.user.role === 'Sales Manager' && (leads[0].assigned_to === req.user.id || leads[0].assigned_to === null)) ||
+            leads[0].assigned_to === req.user.id;
+
+        if (!isAuthorized) {
+            return res.status(403).json({ success: false, message: 'Not authorized to add follow-ups for this lead' });
+        }
         
         await db.execute(
             'INSERT INTO followups (lead_id, scheduled_date, notes) VALUES (?, ?, ?)',
@@ -49,6 +59,21 @@ exports.addFollowup = async (req, res) => {
 
 exports.getLeadFollowups = async (req, res) => {
     try {
+        // Check lead existence and ownership
+        const [leads] = await db.execute('SELECT assigned_to FROM leads WHERE id = ?', [req.params.leadId]);
+        if (leads.length === 0) {
+            return res.status(404).json({ success: false, message: 'Lead not found' });
+        }
+        
+        const isAuthorized = 
+            req.user.role === 'Admin' || 
+            (req.user.role === 'Sales Manager' && (leads[0].assigned_to === req.user.id || leads[0].assigned_to === null)) ||
+            leads[0].assigned_to === req.user.id;
+
+        if (!isAuthorized) {
+            return res.status(403).json({ success: false, message: 'Not authorized to view this lead\'s follow-ups' });
+        }
+
         const [rows] = await db.execute(
             'SELECT * FROM followups WHERE lead_id = ? ORDER BY scheduled_date ASC',
             [req.params.leadId]
@@ -68,7 +93,9 @@ exports.getAllFollowups = async (req, res) => {
             JOIN leads l ON f.lead_id = l.id 
         `;
         
-        if (req.user.role !== 'Admin' && req.user.role !== 'Sales Manager') {
+        if (req.user.role === 'Sales Manager') {
+            query += ` WHERE (l.assigned_to = ${req.user.id} OR l.assigned_to IS NULL) `;
+        } else if (req.user.role !== 'Admin') {
             query += ` WHERE l.assigned_to = ${req.user.id} `;
         }
         

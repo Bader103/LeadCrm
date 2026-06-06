@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ShieldCheck, Loader2 } from 'lucide-react';
 import { useFormik } from 'formik';
@@ -14,7 +14,6 @@ const Login = () => {
     initialValues: {
       email: '',
       password: '',
-      role: 'Admin'
     },
     validationSchema: Yup.object({
       email: Yup.string().email('Invalid email address').required('Email is required'),
@@ -108,19 +107,6 @@ const Login = () => {
             ) : null}
           </div>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Access Level (Role)</label>
-            <select 
-              name="role"
-              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', color: 'white', padding: '12px' }}
-              {...formik.getFieldProps('role')}
-            >
-              <option value="Admin">Admin</option>
-              <option value="Sales Manager">Sales Manager</option>
-              <option value="Sales Agent">Sales Agent</option>
-              <option value="Sales Intern">Sales Intern</option>
-            </select>
-          </div>
 
           <button 
             type="submit" 
@@ -143,8 +129,7 @@ const Login = () => {
         </form>
 
         <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.85rem' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Authorized personnel only. </span>
-          <Link to="/register" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '700' }}>Register Account</Link>
+          <span style={{ color: 'var(--text-muted)' }}>Authorized personnel only.</span>
         </div>
       </motion.div>
     </div>

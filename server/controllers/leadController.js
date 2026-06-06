@@ -10,11 +10,15 @@ const Notification = require('../models/notificationModel');
 exports.getLeads = asyncHandler(async (req, res) => {
     let leads;
     
-    // Admin and Manager can see all leads
-    if (req.user.role === 'Admin' || req.user.role === 'Sales Manager') {
+    if (req.user.role === 'Admin') {
         leads = await Lead.findAll();
+    } else if (req.user.role === 'Sales Manager') {
+        const [rows] = await require('../config/db').execute(
+            'SELECT * FROM leads WHERE assigned_to = ? OR assigned_to IS NULL ORDER BY created_at DESC',
+            [req.user.id]
+        );
+        leads = rows;
     } else {
-        // Sales Agents/Interns see only leads assigned to them
         leads = await Lead.findByAssignedTo(req.user.id);
     }
 
@@ -39,8 +43,13 @@ exports.getLead = asyncHandler(async (req, res) => {
         throw new Error('Lead not found');
     }
 
-    // Check ownership/access
-    if (req.user.role !== 'Admin' && req.user.role !== 'Sales Manager' && lead.assigned_to !== req.user.id) {
+    // Check ownership/access - Admin, Sales Manager (for unassigned or assigned), or assigned user
+    const isAuthorized = 
+        req.user.role === 'Admin' || 
+        (req.user.role === 'Sales Manager' && (lead.assigned_to === req.user.id || lead.assigned_to === null)) ||
+        lead.assigned_to === req.user.id;
+
+    if (!isAuthorized) {
         res.status(403);
         throw new Error('Not authorized to view this lead');
     }
@@ -52,24 +61,26 @@ exports.getLead = asyncHandler(async (req, res) => {
 // @route   POST /api/leads
 // @access  Private (Admin, Manager, Sales Agent)
 exports.createLead = asyncHandler(async (req, res) => {
-    const { error } = leadSchema.validate(req.body);
+    const { error, value } = leadSchema.validate(req.body);
     if (error) {
         res.status(400);
-        throw new Error(error.details[0].message);
+        const err = new Error(error.details[0].message);
+        err.details = error.details;
+        throw err;
     }
 
     // Set creator
-    req.body.created_by = req.user.id;
+    value.created_by = req.user.id;
 
-    const result = await Lead.create(req.body);
+    const result = await Lead.create(value);
 
     // Log Activity
-    await logActivity(req.user.id, 'CREATE_LEAD', result.insertId, { name: req.body.name });
+    await logActivity(req.user.id, 'CREATE_LEAD', result.insertId, { name: `${value.first_name} ${value.last_name}` });
     
     res.status(201).json({
         success: true,
         message: 'Lead created successfully',
-        data: { id: result.insertId, ...req.body }
+        data: { id: result.insertId, ...value }
     });
 });
 
@@ -84,8 +95,13 @@ exports.updateLead = asyncHandler(async (req, res) => {
         throw new Error('Lead not found');
     }
 
-    // Check authorization
-    if (req.user.role !== 'Admin' && req.user.role !== 'Sales Manager' && lead.assigned_to !== req.user.id) {
+    // Check authorization - Admin, Sales Manager (for unassigned or assigned), or assigned user
+    const isAuthorized = 
+        req.user.role === 'Admin' || 
+        (req.user.role === 'Sales Manager' && (lead.assigned_to === req.user.id || lead.assigned_to === null)) ||
+        lead.assigned_to === req.user.id;
+
+    if (!isAuthorized) {
         res.status(403);
         throw new Error('Not authorized to update this lead');
     }
@@ -125,8 +141,8 @@ exports.deleteLead = asyncHandler(async (req, res) => {
         throw new Error('Lead not found');
     }
 
-    // Only Admin and Manager can delete
-    if (req.user.role !== 'Admin' && req.user.role !== 'Sales Manager') {
+    // Only Admin can delete
+    if (req.user.role !== 'Admin') {
         res.status(403);
         throw new Error('Not authorized to delete leads');
     }

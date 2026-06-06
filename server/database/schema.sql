@@ -103,6 +103,18 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Email Templates Table
+CREATE TABLE IF NOT EXISTS email_templates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
 -- Indexes for performance
 CREATE INDEX idx_leads_status ON leads(status);
 CREATE INDEX idx_leads_assigned_to ON leads(assigned_to);

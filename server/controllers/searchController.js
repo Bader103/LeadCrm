@@ -8,13 +8,22 @@ exports.globalSearch = async (req, res) => {
         const searchTerm = `%${q}%`;
 
         // Search Leads
-        const [leads] = await db.execute(
-            `SELECT id, first_name, last_name, email, company, 'lead' as type 
+        let leadQuery = `SELECT id, first_name, last_name, email, company, 'lead' as type 
              FROM leads 
-             WHERE first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR company LIKE ? 
-             LIMIT 10`,
-            [searchTerm, searchTerm, searchTerm, searchTerm]
-        );
+             WHERE (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR company LIKE ?)`;
+        let queryParams = [searchTerm, searchTerm, searchTerm, searchTerm];
+
+        if (req.user.role === 'Sales Manager') {
+            leadQuery += ` AND (assigned_to = ? OR assigned_to IS NULL)`;
+            queryParams.push(req.user.id);
+        } else if (req.user.role !== 'Admin') {
+            leadQuery += ` AND assigned_to = ?`;
+            queryParams.push(req.user.id);
+        }
+
+        leadQuery += ` LIMIT 10`;
+
+        const [leads] = await db.execute(leadQuery, queryParams);
 
         // Search Users (if Admin/Manager)
         let users = [];

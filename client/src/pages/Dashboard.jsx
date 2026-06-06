@@ -33,6 +33,8 @@ const Dashboard = () => {
   const [showNewPass, setShowNewPass] = useState(false);
   const [fullUser, setFullUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(false);
+  const [reportData, setReportData] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(true);
 
   const fetchFullUser = async () => {
     setLoadingUser(true);
@@ -46,17 +48,38 @@ const Dashboard = () => {
     }
   };
 
+  const fetchReportData = async () => {
+    setLoadingReport(true);
+    try {
+      const { data } = await API.get('/reports/performance');
+      setReportData(data.data);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load performance report');
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
   useEffect(() => {
     if (activeView === 'settings') {
       fetchFullUser();
+    } else if (activeView === 'overview') {
+      fetchReportData();
     }
   }, [activeView]);
 
+  const totalLeads = reportData?.summary?.total || 0;
+  const closedDeads = reportData?.summary?.closed || 0;
+  const rejectedLeads = reportData?.statusDistribution?.find(s => s.name === 'Rejected')?.value || 0;
+  const activeLeads = totalLeads - closedDeads - rejectedLeads;
+  const conversionRate = reportData?.conversionRate ? `${reportData.conversionRate}%` : '0%';
+
   const stats = [
-    { label: 'Active Leads', value: '1,284', change: '+12.5%', icon: <Target size={20} />, color: '#10b981' },
-    { label: 'Conversations', value: '432', change: '+5.2%', icon: <Clock size={20} />, color: '#34d399' },
-    { label: 'Closed Deals', value: '98', change: '+18.1%', icon: <CheckCircle size={20} />, color: '#059669' },
-    { label: 'Conversion Rate', value: '24.2%', change: '+2.4%', icon: <TrendingUp size={20} />, color: '#10b981' },
+    { label: 'Active Leads', value: activeLeads, change: 'Live Pipeline', icon: <Target size={20} />, color: '#10b981' },
+    { label: 'Total Leads', value: totalLeads, change: 'All Recorded', icon: <Clock size={20} />, color: '#34d399' },
+    { label: 'Closed Deals', value: closedDeads, change: 'Won', icon: <CheckCircle size={20} />, color: '#059669' },
+    { label: 'Conversion Rate', value: conversionRate, change: 'Won / Total', icon: <TrendingUp size={20} />, color: '#10b981' },
   ];
 
   const settingTabs = [
@@ -161,54 +184,61 @@ const Dashboard = () => {
       </div>
 
       {activeView === 'overview' ? (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-            {stats.map((stat, i) => (
-              <div key={i} className="glass-card" style={{ padding: '1.8rem', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '60px', height: '60px', background: stat.color, opacity: 0.1, borderRadius: '50%' }}></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
-                  <div style={{ padding: '8px', borderRadius: '10px', background: `${stat.color}15`, color: stat.color }}>{stat.icon}</div>
-                  <h3 style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>{stat.label}</h3>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                  <p style={{ fontSize: '2.2rem', fontWeight: '900', lineHeight: 1 }}>{stat.value}</p>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '800', color: stat.change.startsWith('+') ? 'var(--success)' : 'var(--danger)' }}>
-                    {stat.change}
-                  </span>
-                </div>
-              </div>
-            ))}
+        loadingReport ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '400px', gap: '20px' }}>
+             <Loader2 className="animate-spin" size={40} color="var(--primary)" />
+             <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Synchronizing performance dashboard...</p>
           </div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+              {stats.map((stat, i) => (
+                <div key={i} className="glass-card" style={{ padding: '1.8rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '60px', height: '60px', background: stat.color, opacity: 0.1, borderRadius: '50%' }}></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+                    <div style={{ padding: '8px', borderRadius: '10px', background: `${stat.color}15`, color: stat.color }}>{stat.icon}</div>
+                    <h3 style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>{stat.label}</h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                    <p style={{ fontSize: '2.2rem', fontWeight: '900', lineHeight: 1 }}>{stat.value}</p>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--primary)' }}>
+                      {stat.change}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
-            <div className="glass-card" style={{ padding: '2rem', height: '400px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                <h3 style={{ fontWeight: '800' }}>Lead Acquisition Pipeline</h3>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }}></div> Active Leads</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
+              <div className="glass-card" style={{ padding: '2rem', height: '400px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+                  <h3 style={{ fontWeight: '800' }}>Lead Acquisition Pipeline</h3>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }}></div> Active Leads</span>
+                  </div>
+                </div>
+                <div style={{ height: '280px' }}>
+                  <PipelineChart data={reportData?.trendData} />
                 </div>
               </div>
-              <div style={{ height: '280px' }}>
-                <PipelineChart />
+              
+              <div className="glass-card" style={{ padding: '2rem', height: '400px' }}>
+                <h3 style={{ fontWeight: '800', marginBottom: '2rem' }}>Lead Sources</h3>
+                <div style={{ height: '200px', marginBottom: '2rem' }}>
+                  <SourceChart data={reportData?.sourceDistribution} />
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
+                   {(reportData?.sourceDistribution || []).map((s, i) => (
+                     <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: '20px' }}>
+                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ['#10b981', '#34d399', '#059669', '#065f46'][i % 4] }}></div>
+                       {s.name || 'Unknown'}: {s.value}
+                     </div>
+                   ))}
+                </div>
               </div>
             </div>
-            
-            <div className="glass-card" style={{ padding: '2rem', height: '400px' }}>
-              <h3 style={{ fontWeight: '800', marginBottom: '2rem' }}>Lead Sources</h3>
-              <div style={{ height: '200px', marginBottom: '2rem' }}>
-                <SourceChart />
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
-                 {['Website', 'Referral', 'Social', 'Cold Call'].map((s, i) => (
-                   <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: '20px' }}>
-                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b'][i] }}></div>
-                     {s}
-                   </div>
-                 ))}
-              </div>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )
       ) : (
         <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '2rem' }}>

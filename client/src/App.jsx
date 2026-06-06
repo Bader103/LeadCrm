@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Layout from './components/Layout';
 import Leads from './pages/Leads';
 import LeadDetails from './pages/LeadDetails';
@@ -46,7 +45,6 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />

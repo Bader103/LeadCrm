@@ -2,6 +2,12 @@ const errorHandler = (err, req, res, next) => {
     let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
     let message = err.message;
 
+    // Handle validation errors with more detail
+    if (err.details && Array.isArray(err.details)) {
+        statusCode = 400;
+        message = err.details.map(d => d.message).join(', ');
+    }
+
     // Log the error for development
     if (process.env.NODE_ENV !== 'production') {
         console.error(`[Error] ${err.stack}`);
